@@ -2,24 +2,29 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Загрузить модели
 model_udoy = joblib.load('model_udoy.joblib')
 model_zhir = joblib.load('model_zhir.joblib')
 model_belok = joblib.load('model_belok.joblib')
 
-# Создать интерфейс
-st.title('Предсказание изменений параметров после ввода препарата')
-st.write('Введите текущие параметры для предсказания изменений:')
+# Настройка страницы
+st.set_page_config(page_title='Предсказание изменений параметров молока', layout='wide')
+
+# Заголовок
+st.title('Предсказание изменений параметров молока после ввода препарата')
 
 # Ввод параметров
-удой = st.number_input('Текущий суточный удой, кг', min_value=0.0, max_value=100.0, value=30.0)
-жир = st.number_input('Текущий жир, %', min_value=0.0, max_value=100.0, value=3.8)
-белок = st.number_input('Текущий белок, %', min_value=0.0, max_value=100.0, value=3.3)
-группа = st.number_input('Группа', min_value=1, max_value=3, value=1)
+st.sidebar.header('Введите текущие параметры:')
+удой = st.sidebar.number_input('Суточный удой, кг', min_value=0.0, max_value=100.0, value=30.0)
+жир = st.sidebar.number_input('Жир, %', min_value=0.0, max_value=100.0, value=3.8)
+белок = st.sidebar.number_input('Белок, %', min_value=0.0, max_value=100.0, value=3.3)
+группа = st.sidebar.selectbox('Группа', [1, 2, 3])
 
 # Предсказать
-if st.button('Предсказать'):
+if st.sidebar.button('Предсказать'):
     # Подготовить данные для предсказания
     input_data = np.array([[удой, жир, белок, группа]])
     
@@ -33,13 +38,34 @@ if st.button('Предсказать'):
     new_zhir = жир + delta_zhir
     new_belok = белок + delta_belok
     
-    # Вывести результаты
-    st.write('Предсказанные изменения:')
-    st.write(f'Изменение удоя: {delta_udoy:.2f} кг')
-    st.write(f'Изменение жира: {delta_zhir:.2f} %')
-    st.write(f'Изменение белка: {delta_belok:.2f} %')
+    # Вывести результаты в основной части страницы
+    st.header('Результаты предсказания:')
     
-    st.write('Новые значения после ввода препарата:')
-    st.write(f'Новый удой: {new_udoy:.2f} кг')
-    st.write(f'Новый жир: {new_zhir:.2f} %')
-    st.write(f'Новый белок: {new_belok:.2f} %')
+    # Таблица с данными
+    data = {
+        'Параметр': ['Суточный удой', 'Жир', 'Белок'],
+        'Текущее значение': [удой, жир, белок],
+        'Предсказанное изменение': [delta_udoy, delta_zhir, delta_belok],
+        'Новое значение': [new_udoy, new_zhir, new_belok]
+    }
+    df_results = pd.DataFrame(data)
+    st.dataframe(df_results.style.highlight_max(axis=0))
+    
+    # Графики
+    st.subheader('Графическое представление:')
+    
+    # Гистограмма изменений
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.barplot(x='Параметр', y='Предсказанное изменение', data=df_results, ax=ax)
+    ax.set_title('Предсказанные изменения параметров')
+    ax.set_ylabel('Изменение')
+    st.pyplot(fig)
+    
+    # Линейный график текущих и новых значений
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    sns.lineplot(x=['Текущее', 'Новое'], y=[удой, new_udoy], label='Удой', marker='o', ax=ax2)
+    sns.lineplot(x=['Текущее', 'Новое'], y=[жир, new_zhir], label='Жир', marker='o', ax=ax2)
+    sns.lineplot(x=['Текущее', 'Новое'], y=[белок, new_belok], label='Белок', marker='o', ax=ax2)
+    ax2.set_title('Изменение параметров до и после ввода препарата')
+    ax2.set_ylabel('Значение')
+    st.pyplot(fig2)
